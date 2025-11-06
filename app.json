@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "QR8",
+    "slug": "qr8",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logos/qr8-logo.png",
+    "splash": {
+      "image": "./assets/images/logos/qr8-logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#9058aa"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.qr8.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "We need access to your camera to scan QR codes"
+      },
+      "statusBar": {
+        "barStyle": "dark-content"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
+      },
+      "package": "com.qr8.app",
+      "permissions": [
+        "CAMERA"
+      ],
+      "statusBar": {
+        "barStyle": "dark-content",
+        "backgroundColor": "#ffffff"
+      }
+    },
+    "plugins": [
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera"
+        }
+      ],
+      "expo-sqlite"
+    ]
+  }
+}
