@@ -14,46 +14,48 @@ import { QREyePattern2Icon } from '../../assets/images/icons/patterns/qr-eye-pat
 import { QREyePattern3Icon } from '../../assets/images/icons/patterns/qr-eye-pattern-3';
 import { QREyePattern4Icon } from '../../assets/images/icons/patterns/qr-eye-pattern-4';
 
-export const CellShapeIcon: React.FC<{ shape: CellShape }> = ({ shape }) => {
+const DEFAULT = '#F4F1FB';
+
+export const CellShapeIcon: React.FC<{ shape: CellShape; color?: string }> = ({ shape, color = DEFAULT }) => {
   const renderCell = () => {
     switch (shape) {
       case CellShape.Square:
-        return <QRPattern1Icon size={18} color="#1a1a1a" />;
+        return <QRPattern1Icon size={18} color={color} />;
       case CellShape.RoundedSquareSlight:
-        return <QRPattern2Icon size={18} color="#1a1a1a" />;
+        return <QRPattern2Icon size={18} color={color} />;
       case CellShape.RoundedSquareFull:
-        return <QRPattern3Icon size={18} color="#1a1a1a" />;
+        return <QRPattern3Icon size={18} color={color} />;
       case CellShape.Circle:
-        return <QRPattern4Icon size={18} color="#1a1a1a" />;
+        return <QRPattern4Icon size={18} color={color} />;
       case CellShape.RoundedTopLeftBottomRight:
-        return <QRPattern5Icon size={18} color="#1a1a1a" />;
+        return <QRPattern5Icon size={18} color={color} />;
       case CellShape.RoundedTopRightBottomLeft:
-        return <QRPattern6Icon size={18} color="#1a1a1a" />;
+        return <QRPattern6Icon size={18} color={color} />;
       case CellShape.HorizontalLines:
-        return <QRPattern7Icon size={18} color="#1a1a1a" />;
+        return <QRPattern7Icon size={18} color={color} />;
       case CellShape.VerticalLines:
-        return <QRPattern8Icon size={18} color="#1a1a1a" />;
+        return <QRPattern8Icon size={18} color={color} />;
       default:
-        return <QRPattern1Icon size={18} color="#1a1a1a" />;
+        return <QRPattern1Icon size={18} color={color} />;
     }
   };
 
   return <View>{renderCell()}</View>;
 };
 
-export const EyeShapeIcon: React.FC<{ shape: EyeShape }> = ({ shape }) => {
+export const EyeShapeIcon: React.FC<{ shape: EyeShape; color?: string }> = ({ shape, color = DEFAULT }) => {
   const renderEye = () => {
     switch (shape) {
       case EyeShape.Square:
-        return <QREyePattern1Icon size={22} color="#1a1a1a" />;
+        return <QREyePattern1Icon size={22} color={color} />;
       case EyeShape.RoundedSquare:
-        return <QREyePattern2Icon size={22} color="#1a1a1a" />;
+        return <QREyePattern2Icon size={22} color={color} />;
       case EyeShape.Circle:
-        return <QREyePattern3Icon size={22} color="#1a1a1a" />;
+        return <QREyePattern3Icon size={22} color={color} />;
       case EyeShape.Drop:
-        return <QREyePattern4Icon size={22} color="#1a1a1a" />;
+        return <QREyePattern4Icon size={22} color={color} />;
       default:
-        return <QREyePattern1Icon size={22} color="#1a1a1a" />;
+        return <QREyePattern1Icon size={22} color={color} />;
     }
   };
 

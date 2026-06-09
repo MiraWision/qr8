@@ -1,19 +1,23 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, TouchableOpacity, Dimensions, Image } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, Dimensions, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import Animated, { FadeInDown, FadeIn } from 'react-native-reanimated';
 import { QRCodeItem } from '../types/qr';
 import { qrStorageService } from '../services/QRStorageService';
 import QRCodeCard from '../components/QRCodeCard';
 import QRCodeModal from '../components/QRCodeModal';
+import AmbientBackground from '../components/ui/AmbientBackground';
+import GradientButton from '../components/ui/GradientButton';
 import { theme } from '../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PINNED_CARD_WIDTH = (SCREEN_WIDTH - theme.spacing.md * 3) / 2;
+const COLUMN_GAP = theme.spacing.md;
+const CARD_WIDTH = (SCREEN_WIDTH - theme.spacing.md * 2 - COLUMN_GAP) / 2;
 
 const LibraryScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [items, setItems] = useState<QRCodeItem[]>([]);
   const [pinnedItems, setPinnedItems] = useState<QRCodeItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<QRCodeItem | null>(null);
@@ -35,8 +39,7 @@ const LibraryScreen: React.FC = () => {
       await qrStorageService.init();
       const all = await qrStorageService.getAll();
       const pinned = await qrStorageService.getPinned();
-      
-      const allItems = [...pinned, ...all.filter(item => !item.isPinned)];
+      const allItems = [...pinned, ...all.filter((item) => !item.isPinned)];
       setItems(allItems);
       setPinnedItems(pinned);
     } catch (error) {
@@ -75,179 +78,206 @@ const LibraryScreen: React.FC = () => {
     await loadItems();
   };
 
-  const renderItem = ({ item }: { item: QRCodeItem }) => (
-    <View style={{ width: PINNED_CARD_WIDTH }}>
-      <QRCodeCard item={item} onPress={handleItemPress} compact />
+  const renderItem = ({ item, index }: { item: QRCodeItem; index: number }) => (
+    <View style={{ width: CARD_WIDTH }}>
+      <QRCodeCard item={item} onPress={handleItemPress} index={index} />
     </View>
   );
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.titleContainer}>
-        <View style={styles.titleRow}>
-          <Image 
-            source={require('../../assets/images/logos/qr8-logo.png')} 
-            style={styles.logo}
-            resizeMode="contain"
-          />
+    <Animated.View entering={FadeInDown.duration(500)} style={styles.header}>
+      <View style={styles.titleRow}>
+        <Image
+          source={require('../../assets/images/logos/qr8-logo.png')}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+        <View>
+          <Text style={styles.eyebrow}>YOUR COLLECTION</Text>
           <Text style={styles.title}>Library</Text>
         </View>
-        <View style={styles.statsContainer}>
-          <View style={styles.statBadge}>
-            <Text style={styles.statNumber}>{items.length}</Text>
-            <Text style={styles.statLabel}>total</Text>
-          </View>
-          {pinnedItems.length > 0 && (
-            <View style={[styles.statBadge, styles.statBadgePinned]}>
-              <Text style={[styles.statNumber, styles.statNumberPinned]}>{pinnedItems.length}</Text>
-              <Text style={[styles.statLabel, styles.statLabelPinned]}>pinned</Text>
-            </View>
-          )}
-        </View>
       </View>
-    </View>
+
+      <View style={styles.statsContainer}>
+        <View style={styles.statBadge}>
+          <Text style={styles.statNumber}>{items.length}</Text>
+          <Text style={styles.statLabel}>total</Text>
+        </View>
+        {pinnedItems.length > 0 && (
+          <View style={[styles.statBadge, styles.statBadgePinned]}>
+            <Text style={[styles.statNumber, styles.statNumberPinned]}>{pinnedItems.length}</Text>
+            <Text style={[styles.statLabel, styles.statLabelPinned]}>pinned</Text>
+          </View>
+        )}
+      </View>
+    </Animated.View>
   );
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" />
-      <FlatList
-        data={items}
-        renderItem={renderItem}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.gridRow}
-        ListHeaderComponent={renderHeader}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Image 
-              source={require('../../assets/images/logos/qr8-logo.png')} 
-              style={styles.emptyLogo}
-              resizeMode="contain"
+    <AmbientBackground>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar style="light" />
+        <FlatList
+          data={items}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.gridRow}
+          ListHeaderComponent={renderHeader}
+          ListEmptyComponent={
+            <Animated.View entering={FadeIn.delay(150)} style={styles.emptyContainer}>
+              <Image
+                source={require('../../assets/images/logos/qr8-logo.png')}
+                style={styles.emptyLogo}
+                resizeMode="contain"
+              />
+              <Text style={styles.emptyText}>No QR codes yet</Text>
+              <Text style={styles.emptySubtext}>
+                Tap the button below to craft your first beautiful QR code
+              </Text>
+              <GradientButton
+                title="Create QR Code"
+                onPress={() => navigation.navigate('Create')}
+                style={styles.emptyButton}
+              />
+            </Animated.View>
+          }
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={theme.colors.primaryLight}
+              colors={[theme.colors.primary]}
             />
-            <Text style={styles.emptyText}>No QR codes yet</Text>
-            <Text style={styles.emptySubtext}>
-              Create your first QR code to get started
-            </Text>
-          </View>
-        }
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        contentContainerStyle={styles.listContent}
-      />
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
 
-      <QRCodeModal
-        visible={modalVisible}
-        item={selectedItem}
-        onClose={handleModalClose}
-        onPin={handlePin}
-        onUnpin={handleUnpin}
-        onDelete={handleDelete}
-      />
-    </SafeAreaView>
+        <QRCodeModal
+          visible={modalVisible}
+          item={selectedItem}
+          onClose={handleModalClose}
+          onPin={handlePin}
+          onUnpin={handleUnpin}
+          onDelete={handleDelete}
+        />
+      </SafeAreaView>
+    </AmbientBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingTop: 0,
   },
   listContent: {
-    padding: theme.spacing.md,
-    paddingTop: 0,
-    gap: theme.spacing.sm,
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: 130,
     flexGrow: 1,
   },
   header: {
-    marginBottom: theme.spacing.sm,
-  },
-  titleContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    paddingTop: 0,
+    alignItems: 'flex-end',
+    marginBottom: theme.spacing.lg,
+    marginTop: theme.spacing.sm,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: theme.spacing.sm,
+    gap: theme.spacing.sm + 2,
   },
   logo: {
-    width: 32,
-    height: 32,
+    width: 44,
+    height: 44,
+  },
+  eyebrow: {
+    fontSize: 11,
+    fontFamily: theme.fonts.family,
+    color: theme.colors.primaryLight,
+    letterSpacing: 2,
+    marginBottom: 2,
   },
   title: {
     fontSize: theme.fonts.sizes.xxl,
     fontFamily: theme.fonts.family,
     fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
+    letterSpacing: 0.5,
   },
   statsContainer: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
   },
   statBadge: {
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing.md,
-    paddingVertical: theme.spacing.xs,
+    paddingHorizontal: theme.spacing.md - 2,
+    paddingVertical: theme.spacing.xs + 2,
     alignItems: 'center',
-    minWidth: 50,
+    minWidth: 52,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
   },
   statBadgePinned: {
-    backgroundColor: theme.colors.primary + '15',
+    backgroundColor: theme.colors.primary + '22',
+    borderColor: theme.colors.primary + '55',
   },
   statNumber: {
-    fontSize: theme.fonts.sizes.md,
+    fontSize: theme.fonts.sizes.lg,
     fontFamily: theme.fonts.family,
     fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
-    lineHeight: 18,
+    lineHeight: 22,
   },
   statNumberPinned: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryLight,
   },
   statLabel: {
     fontSize: theme.fonts.sizes.xs,
     fontFamily: theme.fonts.family,
-    color: theme.colors.textSecondary,
+    color: theme.colors.textTertiary,
     marginTop: -2,
   },
   statLabelPinned: {
-    color: theme.colors.primary,
+    color: theme.colors.primaryLight,
   },
   gridRow: {
     justifyContent: 'space-between',
-    marginBottom: theme.spacing.sm,
-    gap: theme.spacing.sm,
+    marginBottom: COLUMN_GAP,
   },
   emptyContainer: {
     alignItems: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 70,
+    paddingHorizontal: theme.spacing.lg,
+    flex: 1,
+    justifyContent: 'center',
   },
   emptyLogo: {
-    width: 120,
-    height: 120,
+    width: 110,
+    height: 110,
     marginBottom: theme.spacing.lg,
-    opacity: 0.6,
+    opacity: 0.85,
   },
   emptyText: {
     fontSize: theme.fonts.sizes.xl,
     fontFamily: theme.fonts.family,
     fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.textSecondary,
+    color: theme.colors.text,
     marginBottom: theme.spacing.sm,
   },
   emptySubtext: {
     fontSize: theme.fonts.sizes.sm,
     fontFamily: theme.fonts.family,
-    color: theme.colors.textTertiary,
+    color: theme.colors.textSecondary,
     textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: theme.spacing.lg,
+  },
+  emptyButton: {
+    minWidth: 220,
   },
 });
 

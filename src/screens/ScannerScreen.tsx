@@ -3,30 +3,30 @@ import {
   View,
   Text,
   StyleSheet,
-  TouchableOpacity,
   Alert,
   Dimensions,
   Image,
   Animated,
-  Platform,
 } from 'react-native';
 import { CameraView, Camera } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
 import * as ImageManipulator from 'expo-image-manipulator';
 import QRCodeParser from '../utils/qrParser';
 import { QRCodeItem, CellShape, EyeShape } from '../types/qr';
 import ScanResultModal from '../components/ScanResultModal';
+import GradientButton from '../components/ui/GradientButton';
 import { theme } from '../theme';
 import { UploadIcon } from '../../assets/images/icons/actions/upload';
 
 const { width, height } = Dimensions.get('window');
-const SCAN_AREA_SIZE = 250;
+const SCAN_AREA_SIZE = 260;
 
 const ScannerScreen: React.FC = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -58,8 +58,8 @@ const ScannerScreen: React.FC = () => {
       }
 
       setScanStatus('scanning');
-      
-      const manipulatedImage = await ImageManipulator.manipulateAsync(
+
+      await ImageManipulator.manipulateAsync(
         imageUri,
         [{ resize: { width: 1000 } }],
         { compress: 1, format: ImageManipulator.SaveFormat.PNG }
@@ -79,7 +79,6 @@ const ScannerScreen: React.FC = () => {
         }, 1500);
         scanTimeoutRef.current = null;
       }, 5000);
-      
     } catch (error) {
       console.error('Error decoding QR from image:', error);
       if (scanTimeoutRef.current) {
@@ -95,8 +94,9 @@ const ScannerScreen: React.FC = () => {
     }
   };
 
+  // Gentle continuous scan-line sweep while the camera is live.
   useEffect(() => {
-    if (scanStatus === 'scanning') {
+    if (scanStatus === 'idle' || scanStatus === 'scanning') {
       const animation = Animated.loop(
         Animated.sequence([
           Animated.timing(scanLineAnim, {
@@ -120,7 +120,7 @@ const ScannerScreen: React.FC = () => {
     try {
       setScanStatus('scanning');
       const parsed = QRCodeParser.parse(data);
-      
+
       const qrItem: QRCodeItem = {
         id: `scanned_${Date.now()}`,
         name: generateName(parsed),
@@ -138,12 +138,12 @@ const ScannerScreen: React.FC = () => {
 
       setScannedItem(qrItem);
       setScanStatus('success');
-      
+
       setTimeout(() => {
         setResultModalVisible(true);
         setScanStatus('idle');
         setScanned(false);
-      }, 1000);
+      }, 800);
     } catch (error) {
       console.error('Parse error:', error);
       setScanStatus('error');
@@ -162,7 +162,6 @@ const ScannerScreen: React.FC = () => {
 
   const generateName = (parsed: any): string => {
     const date = new Date().toISOString().split('T')[0];
-    
     switch (parsed.type) {
       case 'wifi':
         return `${parsed.data.ssid || 'Network'} ${date}`;
@@ -182,7 +181,7 @@ const ScannerScreen: React.FC = () => {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
-          <Text>Requesting camera permission...</Text>
+          <Text style={styles.dimText}>Requesting camera permission…</Text>
         </View>
       </SafeAreaView>
     );
@@ -193,26 +192,28 @@ const ScannerScreen: React.FC = () => {
       <SafeAreaView style={styles.container}>
         <View style={styles.centerContent}>
           <Text style={styles.errorText}>No access to camera</Text>
-          <TouchableOpacity
-            style={styles.button}
+          <GradientButton
+            title="Grant Permission"
             onPress={async () => {
               const { status } = await Camera.requestCameraPermissionsAsync();
               setHasPermission(status === 'granted');
             }}
-          >
-            <Text style={styles.buttonText}>Grant Permission</Text>
-          </TouchableOpacity>
+          />
         </View>
       </SafeAreaView>
     );
   }
 
+  const frameColor =
+    scanStatus === 'success'
+      ? theme.colors.success
+      : scanStatus === 'error'
+      ? theme.colors.error
+      : theme.colors.primaryLight;
+
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="light" backgroundColor="#000000" translucent={false} />
-      <View style={styles.header}>
-        <Text style={styles.title}>Scan QR Code</Text>
-      </View>
+    <View style={styles.container}>
+      <StatusBar style="light" />
 
       <View style={styles.cameraContainer}>
         {!selectedImage ? (
@@ -221,46 +222,57 @@ const ScannerScreen: React.FC = () => {
             facing="back"
             onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
           >
+            {/* top vignette + header */}
+            <LinearGradient
+              colors={['rgba(10,7,18,0.95)', 'rgba(10,7,18,0)']}
+              style={styles.topVignette}
+            >
+              <SafeAreaView edges={['top']}>
+                <Text style={styles.title}>Scan QR Code</Text>
+                <Text style={styles.subtitle}>Align a code inside the frame</Text>
+              </SafeAreaView>
+            </LinearGradient>
+
             <View style={styles.scanArea}>
-              <View style={styles.corner} />
-              <View style={[styles.corner, styles.topRight]} />
-              <View style={[styles.corner, styles.bottomLeft]} />
-              <View style={[styles.corner, styles.bottomRight]} />
-              
-              {scanStatus === 'scanning' && (
+              <View style={[styles.corner, styles.topLeft, { borderColor: frameColor }]} />
+              <View style={[styles.corner, styles.topRight, { borderColor: frameColor }]} />
+              <View style={[styles.corner, styles.bottomLeft, { borderColor: frameColor }]} />
+              <View style={[styles.corner, styles.bottomRight, { borderColor: frameColor }]} />
+
+              {(scanStatus === 'idle' || scanStatus === 'scanning') && (
                 <Animated.View
                   style={[
-                    styles.scanLine,
+                    styles.scanLineWrap,
                     {
                       transform: [
                         {
                           translateY: scanLineAnim.interpolate({
                             inputRange: [0, 1],
-                            outputRange: [0, SCAN_AREA_SIZE - 20],
+                            outputRange: [10, SCAN_AREA_SIZE - 10],
                           }),
                         },
                       ],
                     },
                   ]}
-                />
+                >
+                  <LinearGradient
+                    colors={['rgba(196,160,255,0)', theme.colors.primaryLight, 'rgba(196,160,255,0)']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.scanLine}
+                  />
+                </Animated.View>
               )}
-              
+
               {scanStatus === 'success' && (
                 <View style={styles.statusOverlay}>
-                  <Text style={styles.statusTextSuccess}>✓ Success</Text>
+                  <Text style={[styles.statusEmoji, { color: theme.colors.success }]}>✓</Text>
                 </View>
               )}
-              
               {scanStatus === 'error' && (
                 <View style={styles.statusOverlay}>
-                  <Text style={styles.statusTextError}>✗ Error</Text>
+                  <Text style={[styles.statusEmoji, { color: theme.colors.error }]}>✕</Text>
                 </View>
-              )}
-              
-              {scanStatus === 'idle' && (
-                <Text style={styles.scanText}>
-                  Point camera at QR code
-                </Text>
               )}
             </View>
           </CameraView>
@@ -285,55 +297,47 @@ const ScannerScreen: React.FC = () => {
             />
             {scanStatus === 'scanning' && (
               <View style={styles.scanStatusContainer}>
-                <Text style={styles.scanStatusText}>Scanning...</Text>
-              </View>
-            )}
-            {scanStatus === 'success' && (
-              <View style={styles.statusOverlay}>
-                <Text style={styles.statusTextSuccess}>✓ Success</Text>
-              </View>
-            )}
-            {scanStatus === 'error' && (
-              <View style={styles.statusOverlay}>
-                <Text style={styles.statusTextError}>✗ Error</Text>
+                <Text style={styles.scanStatusText}>Scanning…</Text>
               </View>
             )}
           </View>
         )}
       </View>
 
-      <View style={styles.footer}>
-        <TouchableOpacity
-          style={styles.loadButton}
-          onPress={async () => {
-            try {
-              const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-              if (perm.status !== 'granted') {
-                Alert.alert('Permission needed', 'Allow photo library access to load QR code.');
-                return;
+      {/* bottom vignette + footer */}
+      <LinearGradient
+        colors={['rgba(10,7,18,0)', 'rgba(10,7,18,0.97)']}
+        style={styles.bottomVignette}
+        pointerEvents="box-none"
+      >
+        <SafeAreaView edges={['bottom']} style={styles.footer}>
+          <GradientButton
+            title="Load from Gallery"
+            variant="glass"
+            icon={<UploadIcon size={18} color={theme.colors.text} />}
+            onPress={async () => {
+              try {
+                const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                if (perm.status !== 'granted') {
+                  Alert.alert('Permission needed', 'Allow photo library access to load QR code.');
+                  return;
+                }
+                const res = await ImagePicker.launchImageLibraryAsync({
+                  mediaTypes: ['images'] as any,
+                  quality: 1,
+                  allowsEditing: false,
+                });
+                if (!res.canceled && res.assets && res.assets[0]) {
+                  setSelectedImage(res.assets[0].uri);
+                }
+              } catch (error) {
+                console.error('Error loading image:', error);
+                Alert.alert('Error', 'Failed to load image');
               }
-              const res = await ImagePicker.launchImageLibraryAsync({
-                mediaTypes: ['images'] as any,
-                quality: 1,
-                allowsEditing: false,
-              });
-              if (!res.canceled && res.assets && res.assets[0]) {
-                const imageUri = res.assets[0].uri;
-                setSelectedImage(imageUri);
-              }
-            } catch (error) {
-              console.error('Error loading image:', error);
-              Alert.alert('Error', 'Failed to load image');
-            }
-          }}
-        >
-          <UploadIcon size={18} color={theme.colors.background} />
-          <Text style={styles.loadButtonText}>Load from Gallery</Text>
-        </TouchableOpacity>
-        <Text style={styles.instructionText}>
-          Position the QR code within the frame
-        </Text>
-      </View>
+            }}
+          />
+        </SafeAreaView>
+      </LinearGradient>
 
       <ScanResultModal
         visible={resultModalVisible}
@@ -343,40 +347,58 @@ const ScannerScreen: React.FC = () => {
           setScannedItem(null);
         }}
         onSave={(item) => {
-          navigation.navigate('CreateScreen' as never, { prefilledData: item, fromScanner: true } as never);
+          navigation.navigate('CreateScreen', { prefilledData: item, fromScanner: true });
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000',
+    backgroundColor: theme.colors.background,
   },
   centerContent: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: theme.spacing.lg,
+    gap: theme.spacing.lg,
   },
-  header: {
-    padding: theme.spacing.md,
-    backgroundColor: '#1a1a1a',
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.primary + '30',
-  },
-  title: {
-    fontSize: theme.fonts.sizes.xl,
+  dimText: {
+    fontSize: theme.fonts.sizes.md,
     fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.bold,
-    color: '#fff',
+    color: theme.colors.textSecondary,
   },
   cameraContainer: {
     flex: 1,
   },
   camera: {
     flex: 1,
+  },
+  topVignette: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: theme.spacing.xl,
+    zIndex: 2,
+  },
+  title: {
+    fontSize: theme.fonts.sizes.xxl,
+    fontFamily: theme.fonts.family,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
+    letterSpacing: 0.3,
+    marginTop: theme.spacing.sm,
+  },
+  subtitle: {
+    fontSize: theme.fonts.sizes.sm,
+    fontFamily: theme.fonts.family,
+    color: theme.colors.textSecondary,
+    marginTop: 2,
   },
   scanArea: {
     position: 'absolute',
@@ -391,101 +413,84 @@ const styles = StyleSheet.create({
   },
   corner: {
     position: 'absolute',
-    width: 30,
-    height: 30,
-    borderColor: theme.colors.primary,
-    borderWidth: 3,
+    width: 38,
+    height: 38,
+    borderColor: theme.colors.primaryLight,
+    borderWidth: 4,
+    borderRadius: 4,
+  },
+  topLeft: {
     top: 0,
     left: 0,
     borderRightWidth: 0,
     borderBottomWidth: 0,
+    borderTopLeftRadius: 18,
   },
   topRight: {
     top: 0,
     right: 0,
-    left: 'auto',
-    borderRightWidth: 3,
-    borderTopWidth: 0,
     borderLeftWidth: 0,
+    borderBottomWidth: 0,
+    borderTopRightRadius: 18,
   },
   bottomLeft: {
     bottom: 0,
-    top: 'auto',
-    borderBottomWidth: 3,
+    left: 0,
+    borderRightWidth: 0,
     borderTopWidth: 0,
-    borderLeftWidth: 0,
+    borderBottomLeftRadius: 18,
   },
   bottomRight: {
     bottom: 0,
     right: 0,
-    top: 'auto',
-    left: 'auto',
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
-    borderTopWidth: 0,
     borderLeftWidth: 0,
+    borderTopWidth: 0,
+    borderBottomRightRadius: 18,
   },
-  scanText: {
-    color: '#fff',
-    fontSize: 16,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    padding: 8,
-    borderRadius: 8,
-    marginTop: 20,
+  scanLineWrap: {
+    position: 'absolute',
+    left: 12,
+    right: 12,
+    height: 3,
   },
-  instructions: {
-    padding: 20,
-    backgroundColor: '#1a1a1a',
+  scanLine: {
+    height: 3,
+    borderRadius: 3,
+    width: '100%',
+    shadowColor: theme.colors.primaryLight,
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.9,
+    shadowRadius: 8,
   },
-  footer: {
-    padding: theme.spacing.md,
-    backgroundColor: '#1a1a1a',
-    borderTopWidth: 1,
-    borderTopColor: theme.colors.primary + '30',
-  },
-  instructionText: {
-    color: '#fff',
-    fontSize: theme.fonts.sizes.sm,
-    fontFamily: theme.fonts.family,
-    textAlign: 'center',
-    marginTop: theme.spacing.md,
-  },
-  loadButton: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    flexDirection: 'row',
+  statusOverlay: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: theme.spacing.xs,
   },
-  loadButtonText: {
-    color: '#fff',
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
+  statusEmoji: {
+    fontSize: 72,
+    fontWeight: 'bold',
+  },
+  bottomVignette: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingTop: theme.spacing.xxl,
+  },
+  footer: {
+    paddingHorizontal: theme.spacing.lg,
+    paddingBottom: 90,
   },
   errorText: {
     fontSize: theme.fonts.sizes.lg,
     fontFamily: theme.fonts.family,
-    color: '#fff',
-    marginBottom: 20,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.text,
   },
   previewContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#000',
   },
   previewImage: {
     width: '100%',
@@ -498,58 +503,24 @@ const styles = StyleSheet.create({
     height: 1,
     opacity: 0,
   },
-  scanLine: {
-    position: 'absolute',
-    width: SCAN_AREA_SIZE,
-    height: 20,
-    backgroundColor: theme.colors.primary,
-    opacity: 0.6,
-  },
-  statusOverlay: {
-    position: 'absolute',
-    top: '50%',
-    left: 0,
-    right: 0,
-    transform: [{ translateY: -15 }],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusTextSuccess: {
-    fontSize: 32,
-    color: '#4CAF50',
-    fontWeight: 'bold',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
-  statusTextError: {
-    fontSize: 32,
-    color: '#F44336',
-    fontWeight: 'bold',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
-  },
   scanStatusContainer: {
     position: 'absolute',
     top: '50%',
     left: 0,
     right: 0,
-    transform: [{ translateY: -15 }],
     alignItems: 'center',
     justifyContent: 'center',
   },
   scanStatusText: {
     fontSize: theme.fonts.sizes.lg,
     fontFamily: theme.fonts.family,
-    color: theme.colors.primary,
+    color: theme.colors.text,
     fontWeight: theme.fonts.weights.semibold,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    backgroundColor: 'rgba(10, 7, 18, 0.85)',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
     borderRadius: theme.borderRadius.md,
+    overflow: 'hidden',
   },
 });
 

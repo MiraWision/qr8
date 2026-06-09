@@ -1,14 +1,9 @@
 import React from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, Modal, ScrollView, StyleSheet, Pressable } from 'react-native';
+import Animated, { FadeIn, SlideInDown, Easing } from 'react-native-reanimated';
 import { QRCodeItem } from '../types/qr';
 import CustomQR from './CustomQR';
+import GradientButton from './ui/GradientButton';
 import { buildQrPayload } from '../utils/qrPayload';
 import { QRWiFiIcon } from '../../assets/images/icons/qr-types/qr-wifi';
 import { QRVCardIcon } from '../../assets/images/icons/qr-types/qr-vcard';
@@ -31,23 +26,24 @@ const ScanResultModal: React.FC<Props> = ({ visible, item, onClose, onSave }) =>
   if (!item) return null;
 
   const getTypeIcon = () => {
+    const c = theme.colors.primaryLight;
     switch (item.type) {
       case 'wifi':
-        return <QRWiFiIcon size={24} color={theme.colors.primary} />;
+        return <QRWiFiIcon size={22} color={c} />;
       case 'text':
-        return <QRTextIcon size={24} color={theme.colors.primary} />;
+        return <QRTextIcon size={22} color={c} />;
       case 'link':
-        return <QRWebIcon size={24} color={theme.colors.primary} />;
+        return <QRWebIcon size={22} color={c} />;
       case 'vcard':
-        return <QRVCardIcon size={24} color={theme.colors.primary} />;
+        return <QRVCardIcon size={22} color={c} />;
       case 'email':
-        return <QREmailIcon size={24} color={theme.colors.primary} />;
+        return <QREmailIcon size={22} color={c} />;
       case 'phone':
-        return <QRPhoneIcon size={24} color={theme.colors.primary} />;
+        return <QRPhoneIcon size={22} color={c} />;
       case 'sms':
-        return <QRSMSIcon size={24} color={theme.colors.primary} />;
+        return <QRSMSIcon size={22} color={c} />;
       case 'event':
-        return <QREventIcon size={24} color={theme.colors.primary} />;
+        return <QREventIcon size={22} color={c} />;
       default:
         return null;
     }
@@ -105,61 +101,57 @@ const ScanResultModal: React.FC<Props> = ({ visible, item, onClose, onSave }) =>
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
+      <Animated.View entering={FadeIn.duration(200)} style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Animated.View entering={SlideInDown.duration(440).easing(Easing.out(Easing.cubic))} style={styles.modal}>
+          <View style={styles.handle} />
           <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
-            {/* Preview */}
-            <View style={styles.previewContainer}>
-              <CustomQR
-                value={buildQrPayload(item.type as any, item.data)}
-                size={200}
-                foregroundColor={item.style.foregroundColor}
-                backgroundColor={item.style.backgroundColor}
-                cellShape={item.style.cellShape}
-                eyeShape={item.style.eyeShape}
-                errorCorrectionLevel={'H'}
-                quietZone={16}
-                gradient={null}
-                centerLogo={null}
-              />
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>SCANNED</Text>
             </View>
 
-            {/* Type */}
-            <View style={styles.typeContainer}>
-              <View style={styles.typeIconContainer}>
-                {getTypeIcon()}
+            <View style={styles.previewContainer}>
+              <View style={styles.qrTile}>
+                <CustomQR
+                  value={buildQrPayload(item.type as any, item.data)}
+                  size={190}
+                  foregroundColor={item.style.foregroundColor}
+                  backgroundColor={item.style.backgroundColor}
+                  cellShape={item.style.cellShape}
+                  eyeShape={item.style.eyeShape}
+                  errorCorrectionLevel={'H'}
+                  quietZone={16}
+                  gradient={null}
+                  centerLogo={null}
+                />
               </View>
+            </View>
+
+            <View style={styles.typeContainer}>
+              <View style={styles.typeIconContainer}>{getTypeIcon()}</View>
               <Text style={styles.typeLabel}>{getTypeLabel()}</Text>
             </View>
 
-            {/* Content */}
             <View style={styles.contentContainer}>
-              <Text style={styles.contentLabel}>Content:</Text>
+              <Text style={styles.contentLabel}>CONTENT</Text>
               <Text style={styles.contentText}>{getContent()}</Text>
             </View>
           </ScrollView>
 
-          {/* Buttons */}
           <View style={styles.buttonsContainer}>
-            <TouchableOpacity
-              style={[styles.button, styles.closeButton]}
-              onPress={onClose}
-            >
-              <Text style={styles.closeButtonText}>Close</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.saveButton]}
+            <GradientButton title="Close" onPress={onClose} variant="glass" style={styles.button} />
+            <GradientButton
+              title="Save"
               onPress={() => {
                 onSave(item);
                 onClose();
               }}
-            >
-              <Text style={styles.saveButtonText}>Save</Text>
-            </TouchableOpacity>
+              style={styles.button}
+            />
           </View>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -167,33 +159,77 @@ const ScanResultModal: React.FC<Props> = ({ visible, item, onClose, onSave }) =>
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(5, 3, 10, 0.7)',
     justifyContent: 'flex-end',
   },
   modal: {
-    backgroundColor: theme.colors.background,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    maxHeight: '80%',
+    backgroundColor: theme.colors.surfaceSolid,
+    borderTopLeftRadius: theme.borderRadius.xl,
+    borderTopRightRadius: theme.borderRadius.xl,
+    maxHeight: '85%',
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
+    paddingBottom: theme.spacing.xl,
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 4,
   },
   scrollView: {
-    padding: 20,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+  },
+  badge: {
+    alignSelf: 'center',
+    backgroundColor: theme.colors.primary + '22',
+    borderColor: theme.colors.primary + '55',
+    borderWidth: 1,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: 5,
+    borderRadius: theme.borderRadius.pill,
+    marginBottom: theme.spacing.md,
+  },
+  badgeText: {
+    fontSize: theme.fonts.sizes.xs,
+    fontFamily: theme.fonts.family,
+    color: theme.colors.primaryLight,
+    letterSpacing: 2,
   },
   previewContainer: {
     alignItems: 'center',
-    marginBottom: 24,
-    paddingVertical: 20,
+    marginBottom: theme.spacing.lg,
+  },
+  qrTile: {
+    backgroundColor: theme.colors.tile,
+    padding: theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 6,
   },
   typeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
-    paddingBottom: 16,
-    borderBottomWidth: 1,
+    marginBottom: theme.spacing.md,
+    paddingBottom: theme.spacing.md,
+    borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: theme.colors.borderLight,
+    gap: theme.spacing.sm,
   },
   typeIconContainer: {
-    marginRight: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.primary + '1F',
   },
   typeLabel: {
     fontSize: theme.fonts.sizes.xl,
@@ -202,14 +238,19 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
   },
   contentContainer: {
-    marginBottom: 20,
+    marginBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    padding: theme.spacing.md,
   },
   contentLabel: {
-    fontSize: theme.fonts.sizes.sm,
+    fontSize: theme.fonts.sizes.xs,
     fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.textSecondary,
-    marginBottom: 8,
+    color: theme.colors.primaryLight,
+    letterSpacing: 1,
+    marginBottom: theme.spacing.sm,
   },
   contentText: {
     fontSize: theme.fonts.sizes.md,
@@ -219,34 +260,12 @@ const styles = StyleSheet.create({
   },
   buttonsContainer: {
     flexDirection: 'row',
-    padding: 20,
-    paddingTop: 0,
-    gap: 12,
+    paddingHorizontal: theme.spacing.lg,
+    paddingTop: theme.spacing.sm,
+    gap: theme.spacing.sm,
   },
   button: {
     flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeButton: {
-    backgroundColor: theme.colors.backgroundSecondary,
-  },
-  closeButtonText: {
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.textSecondary,
-  },
-  saveButton: {
-    backgroundColor: theme.colors.primary,
-  },
-  saveButtonText: {
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.background,
   },
 });
 

@@ -11,6 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import Animated, { FadeIn, FadeInDown, FadeInRight, Easing } from 'react-native-reanimated';
 import { BackIcon } from '../../assets/images/icons/navigation/back-icon';
 import { theme } from '../theme';
 import { QRType, QRCodeItem, CellShape, EyeShape } from '../types/qr';
@@ -30,6 +31,9 @@ import type { CustomQRHandle } from '../components/CustomQR';
 import { buildQrPayload } from '../utils/qrPayload';
 import ColorPickerModal from '../components/color-picker-modal';
 import { CellShapeIcon, EyeShapeIcon } from '../components/shape-icons';
+import AmbientBackground from '../components/ui/AmbientBackground';
+import GradientButton from '../components/ui/GradientButton';
+import PressableScale from '../components/ui/PressableScale';
 import * as ImagePicker from 'expo-image-picker';
 import { QRWiFiIcon } from '../../assets/images/icons/qr-types/qr-wifi';
 import { QRVCardIcon } from '../../assets/images/icons/qr-types/qr-vcard';
@@ -51,10 +55,10 @@ interface CreateScreenProps {
 }
 
 const CreateScreen: React.FC<CreateScreenProps> = ({ route }) => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<any>();
   const prefilledData = route?.params?.prefilledData;
   const fromScanner = route?.params?.fromScanner || false;
-  
+
   const [step, setStep] = useState<1 | 2>(prefilledData ? 2 : 1);
   const [type, setType] = useState<QRType>(prefilledData?.type || 'link');
   const [formData, setFormData] = useState<QRFormData>(prefilledData?.data || { url: '' });
@@ -111,10 +115,10 @@ const CreateScreen: React.FC<CreateScreenProps> = ({ route }) => {
         return false;
       };
 
-      const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
         const actionType = e.data.action.type;
         const isGoingBack = actionType === 'GO_BACK' || actionType === 'POP';
-        
+
         if (isGoingBack) {
           if (step === 2 && fromScanner) {
             return;
@@ -170,7 +174,6 @@ const CreateScreen: React.FC<CreateScreenProps> = ({ route }) => {
         const vcardData = formData as any;
         return `${vcardData.name || 'Contact'} ${date}`;
       case 'email':
-        const emailData = formData as any;
         return `Email ${date}`;
       case 'phone':
         return `Phone ${date}`;
@@ -181,7 +184,6 @@ const CreateScreen: React.FC<CreateScreenProps> = ({ route }) => {
         return `${eventData.title || 'Event'} ${date}`;
     }
   };
-
 
   const handleSave = async () => {
     try {
@@ -197,7 +199,7 @@ const CreateScreen: React.FC<CreateScreenProps> = ({ route }) => {
       };
 
       await qrStorageService.add(qrItem);
-      
+
       setStep(1);
       setType('link');
       setFormData({ url: '' });
@@ -208,7 +210,7 @@ const CreateScreen: React.FC<CreateScreenProps> = ({ route }) => {
         eyeShape: EyeShape.Square,
       });
       setName('');
-      
+
       navigation.goBack();
     } catch (error) {
       Alert.alert('Error', 'Failed to create QR code');
@@ -272,305 +274,344 @@ const CreateScreen: React.FC<CreateScreenProps> = ({ route }) => {
     resetFormData(newType);
   };
 
+  const getTypeIcon = (qrType: string, active: boolean) => {
+    const c = active ? theme.colors.primaryLight : theme.colors.textSecondary;
+    switch (qrType) {
+      case 'text': return <QRTextIcon size={24} color={c} />;
+      case 'link': return <QRWebIcon size={24} color={c} />;
+      case 'email': return <QREmailIcon size={24} color={c} />;
+      case 'phone': return <QRPhoneIcon size={24} color={c} />;
+      case 'sms': return <QRSMSIcon size={24} color={c} />;
+      case 'wifi': return <QRWiFiIcon size={24} color={c} />;
+      case 'vcard': return <QRVCardIcon size={24} color={c} />;
+      case 'event': return <QREventIcon size={24} color={c} />;
+      default: return null;
+    }
+  };
+
+  const renderHeader = (title: string, onBack: () => void, right?: React.ReactNode) => (
+    <View style={styles.header}>
+      <PressableScale onPress={onBack} style={styles.iconCircle} activeScale={0.88}>
+        <BackIcon size={22} color={theme.colors.text} />
+      </PressableScale>
+      <View style={styles.headerCenter}>
+        <Text style={styles.headerEyebrow}>STEP {step} OF 2</Text>
+        <Text style={styles.title}>{title}</Text>
+      </View>
+      <View style={styles.headerRight}>{right}</View>
+    </View>
+  );
+
   if (step === 1) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <StatusBar style="dark" />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <BackIcon size={24} color={theme.colors.text} />
-          </TouchableOpacity>
-          <Text style={styles.title}>Create QR Code</Text>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
+      <AmbientBackground>
+        <SafeAreaView style={styles.container} edges={['top']}>
+          <StatusBar style="light" />
+          {renderHeader(
+            'Create',
+            () => navigation.goBack(),
+            <PressableScale onPress={() => navigation.goBack()} activeScale={0.9}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </PressableScale>
+          )}
 
-        <ScrollView style={styles.content}>
-          <View style={styles.typeSelector}>
-            <Text style={styles.sectionTitle}>Type</Text>
-            <View style={styles.typeButtons}>
-              {['text', 'link', 'email', 'phone', 'sms', 'wifi', 'vcard', 'event'].map((qrType) => {
-                const getIcon = () => {
-                  switch (qrType) {
-                    case 'text': return <QRTextIcon size={24} />;
-                    case 'link': return <QRWebIcon size={24} />;
-                    case 'email': return <QREmailIcon size={24} />;
-                    case 'phone': return <QRPhoneIcon size={24} />;
-                    case 'sms': return <QRSMSIcon size={24} />;
-                    case 'wifi': return <QRWiFiIcon size={24} />;
-                    case 'vcard': return <QRVCardIcon size={24} />;
-                    case 'event': return <QREventIcon size={24} />;
-                    default: return null;
-                  }
-                };
-                return (
-                  <TouchableOpacity
-                    key={qrType}
-                    style={[styles.typeButton, type === qrType && styles.typeButtonActive]}
-                    onPress={() => handleTypeChange(qrType as QRType)}
-                  >
-                    {getIcon()}
-                    <Text style={[styles.typeButtonText, type === qrType && styles.typeButtonTextActive]}>
-                      {qrType === 'vcard' ? 'vCard' : qrType.toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
+          <ScrollView style={styles.content} contentContainerStyle={styles.scrollPad} showsVerticalScrollIndicator={false}>
+            <Animated.View entering={FadeInDown.duration(480).easing(Easing.out(Easing.cubic))} style={styles.typeSelector}>
+              <Text style={styles.sectionTitle}>Choose a type</Text>
+              <View style={styles.typeButtons}>
+                {['text', 'link', 'email', 'phone', 'sms', 'wifi', 'vcard', 'event'].map((qrType, i) => {
+                  const active = type === qrType;
+                  return (
+                    <Animated.View key={qrType} entering={FadeIn.delay(i * 40)} style={styles.typeButtonWrap}>
+                      <PressableScale
+                        style={[styles.typeButton, active && styles.typeButtonActive]}
+                        onPress={() => handleTypeChange(qrType as QRType)}
+                        activeScale={0.93}
+                      >
+                        {getTypeIcon(qrType, active)}
+                        <Text style={[styles.typeButtonText, active && styles.typeButtonTextActive]}>
+                          {qrType === 'vcard' ? 'vCard' : qrType.toUpperCase()}
+                        </Text>
+                      </PressableScale>
+                    </Animated.View>
+                  );
+                })}
+              </View>
+            </Animated.View>
 
-          {renderForm()}
+            <Animated.View entering={FadeInDown.delay(120).duration(480).easing(Easing.out(Easing.cubic))} style={styles.formCard}>
+              {renderForm()}
+            </Animated.View>
 
-          <TouchableOpacity
-            style={[styles.button, styles.nextButton]}
-            onPress={() => setStep(2)}
-          >
-            <Text style={styles.buttonText}>Next: Style</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </SafeAreaView>
+            <GradientButton
+              title="Continue to Style"
+              onPress={() => setStep(2)}
+              style={styles.cta}
+            />
+          </ScrollView>
+        </SafeAreaView>
+      </AmbientBackground>
     );
   }
 
   // Step 2: Style & Preview
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <StatusBar style="dark" />
-      <View style={styles.header}>
-        <TouchableOpacity 
-          onPress={() => {
-            if (fromScanner) {
-              navigation.goBack();
-            } else {
-              setStep(1);
-            }
-          }}
-          style={styles.backButton}
-        >
-          <BackIcon size={24} color={theme.colors.text} />
-        </TouchableOpacity>
-        <Text style={styles.title}>Style & Preview</Text>
-        <View style={{ width: 60 }} />
-      </View>
+    <AmbientBackground>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar style="light" />
+        {renderHeader('Style & Preview', () => {
+          if (fromScanner) {
+            navigation.goBack();
+          } else {
+            setStep(1);
+          }
+        })}
 
-      <ScrollView style={styles.content}>
-        <View style={styles.previewSection}>
-          <View style={styles.previewContainer}>
-            <CustomQR
-              ref={qrRef}
-              key={`qr-${style.eyeShape}-${style.cellShape}-${style.foregroundColor}-${style.backgroundColor}-${(style as any)?.logoBase64 ? 'logo' : 'nologo'}`}
-              value={buildQrPayload(type as any, generateQRData())}
-              size={200}
-              foregroundColor={style.foregroundColor}
-              backgroundColor={style.backgroundColor}
-              cellShape={style.cellShape}
-              eyeShape={style.eyeShape}
-                errorCorrectionLevel={'H'}
-                quietZone={24}
-              gradient={null}
-              centerLogo={logoBase64 ? { width: 56, height: 56, borderRadius: 12, bgColor: '#fff', logoBase64 } : null}
-            />
-          </View>
-          {/* Removed save/share buttons at creation step */}
-        </View>
-
-        <View style={styles.styleSection}>
-          <View style={styles.twoColumnLayout}>
-            <View style={styles.shapesColumn}>
-              <View style={styles.optionButton}>
-                <Text style={styles.optionLabel}>Eye Shape</Text>
-                <View style={styles.iconButtonsContainer}>
-                  {[EyeShape.Square, EyeShape.RoundedSquare, EyeShape.Circle, EyeShape.Drop].map((shape) => (
-                    <TouchableOpacity
-                      key={shape}
-                      style={[styles.iconButton, style.eyeShape === shape && styles.iconButtonActive]}
-                      onPress={() => setStyle({ ...style, eyeShape: shape })}
-                    >
-                      <EyeShapeIcon shape={shape} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.optionButton}>
-                <Text style={styles.optionLabel}>Cell Shape</Text>
-                <View style={styles.iconButtonsContainer}>
-                  {[
-                    CellShape.Square,
-                    CellShape.RoundedSquareSlight,
-                    CellShape.RoundedSquareFull,
-                    CellShape.Circle,
-                    CellShape.RoundedTopLeftBottomRight,
-                    CellShape.RoundedTopRightBottomLeft,
-                    CellShape.HorizontalLines,
-                    CellShape.VerticalLines,
-                  ].map((shape) => (
-                    <TouchableOpacity
-                      key={shape}
-                      style={[styles.iconButton, style.cellShape === shape && styles.iconButtonActive]}
-                      onPress={() => setStyle({ ...style, cellShape: shape })}
-                    >
-                      <CellShapeIcon shape={shape} />
-                    </TouchableOpacity>
-                  ))}
-                </View>
+        <ScrollView style={styles.content} contentContainerStyle={styles.scrollPad} showsVerticalScrollIndicator={false}>
+          <Animated.View entering={FadeInDown.duration(480).easing(Easing.out(Easing.cubic))} style={styles.previewSection}>
+            <View style={styles.previewGlow}>
+              <View style={[styles.previewTile, { backgroundColor: style.backgroundColor }]}>
+                <CustomQR
+                  ref={qrRef}
+                  key={`qr-${style.eyeShape}-${style.cellShape}-${style.foregroundColor}-${style.backgroundColor}-${(style as any)?.logoBase64 ? 'logo' : 'nologo'}`}
+                  value={buildQrPayload(type as any, generateQRData())}
+                  size={200}
+                  foregroundColor={style.foregroundColor}
+                  backgroundColor={style.backgroundColor}
+                  cellShape={style.cellShape}
+                  eyeShape={style.eyeShape}
+                  errorCorrectionLevel={'H'}
+                  quietZone={24}
+                  gradient={null}
+                  centerLogo={logoBase64 ? { width: 56, height: 56, borderRadius: 12, bgColor: '#fff', logoBase64 } : null}
+                />
               </View>
             </View>
+          </Animated.View>
 
-            <View style={styles.colorsColumn}>
-              <View style={styles.colorPickerRow}>
+          <Animated.View entering={FadeInRight.delay(80).duration(480).easing(Easing.out(Easing.cubic))} style={styles.panel}>
+            <View style={styles.twoColumnLayout}>
+              <View style={styles.shapesColumn}>
+                <View style={styles.optionButton}>
+                  <Text style={styles.optionLabel}>Eye Shape</Text>
+                  <View style={styles.iconButtonsContainer}>
+                    {[EyeShape.Square, EyeShape.RoundedSquare, EyeShape.Circle, EyeShape.Drop].map((shape) => {
+                      const active = style.eyeShape === shape;
+                      return (
+                        <PressableScale
+                          key={shape}
+                          style={[styles.iconButton, active && styles.iconButtonActive]}
+                          onPress={() => setStyle({ ...style, eyeShape: shape })}
+                          activeScale={0.9}
+                        >
+                          <EyeShapeIcon shape={shape} color={active ? theme.colors.primaryLight : theme.colors.textSecondary} />
+                        </PressableScale>
+                      );
+                    })}
+                  </View>
+                </View>
+
+                <View style={styles.optionButton}>
+                  <Text style={styles.optionLabel}>Cell Shape</Text>
+                  <View style={styles.iconButtonsContainer}>
+                    {[
+                      CellShape.Square,
+                      CellShape.RoundedSquareSlight,
+                      CellShape.RoundedSquareFull,
+                      CellShape.Circle,
+                      CellShape.RoundedTopLeftBottomRight,
+                      CellShape.RoundedTopRightBottomLeft,
+                      CellShape.HorizontalLines,
+                      CellShape.VerticalLines,
+                    ].map((shape) => {
+                      const active = style.cellShape === shape;
+                      return (
+                        <PressableScale
+                          key={shape}
+                          style={[styles.iconButton, active && styles.iconButtonActive]}
+                          onPress={() => setStyle({ ...style, cellShape: shape })}
+                          activeScale={0.9}
+                        >
+                          <CellShapeIcon shape={shape} color={active ? theme.colors.primaryLight : theme.colors.textSecondary} />
+                        </PressableScale>
+                      );
+                    })}
+                  </View>
+                </View>
+              </View>
+
+              <View style={styles.colorsColumn}>
+                <Text style={styles.optionLabel}>Colors</Text>
                 <View style={styles.colorPickerContainer}>
                   <View style={styles.colorItemContainer}>
-                    <Text style={styles.colorItemLabel}>QR</Text>
-                    <TouchableOpacity 
+                    <PressableScale
                       style={styles.colorButton}
+                      activeScale={0.9}
                       onPress={() => {
                         setColorPickerType('foreground');
                         requestAnimationFrame(() => setColorPickerVisible(true));
                       }}
                     >
                       <View style={[styles.colorPreviewCircle, { backgroundColor: style.foregroundColor }]} />
-                    </TouchableOpacity>
+                    </PressableScale>
+                    <Text style={styles.colorItemLabel}>QR</Text>
                   </View>
-                  
+
                   <View style={styles.colorItemContainer}>
-                    <Text style={styles.colorItemLabel}>BG</Text>
-                    <TouchableOpacity 
+                    <PressableScale
                       style={styles.colorButton}
+                      activeScale={0.9}
                       onPress={() => {
                         setColorPickerType('background');
                         requestAnimationFrame(() => setColorPickerVisible(true));
                       }}
                     >
                       <View style={[styles.colorPreviewCircle, { backgroundColor: style.backgroundColor }]} />
-                    </TouchableOpacity>
+                    </PressableScale>
+                    <Text style={styles.colorItemLabel}>BG</Text>
                   </View>
                 </View>
               </View>
             </View>
-          </View>
-        </View>
+          </Animated.View>
 
-        <View style={styles.styleSection}>
-          <View style={styles.logoRow}>
-            <TouchableOpacity
-              style={styles.logoButton}
-              onPress={async () => {
-                try {
-                  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                  if (perm.status !== 'granted') {
-                    Alert.alert('Permission needed', 'Allow photo library access to choose a logo.');
-                    return;
+          <Animated.View entering={FadeInRight.delay(140).duration(480).easing(Easing.out(Easing.cubic))} style={styles.panel}>
+            <Text style={styles.optionLabel}>Logo</Text>
+            <View style={styles.logoRow}>
+              <GradientButton
+                title="Add Logo"
+                size="md"
+                icon={<UploadIcon size={18} color={theme.colors.onPrimary} />}
+                style={styles.logoBtn}
+                onPress={async () => {
+                  try {
+                    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+                    if (perm.status !== 'granted') {
+                      Alert.alert('Permission needed', 'Allow photo library access to choose a logo.');
+                      return;
+                    }
+                    const res = await ImagePicker.launchImageLibraryAsync({
+                      mediaTypes: ['images'] as any,
+                      quality: 1,
+                      base64: true,
+                    });
+                    if (!res.canceled && res.assets && res.assets[0]?.base64) {
+                      setLogoBase64(res.assets[0].base64);
+                    }
+                  } catch (e) {
+                    Alert.alert('Error', 'Failed to open image picker. Please restart Metro.');
+                    console.error(e);
                   }
-                  const res = await ImagePicker.launchImageLibraryAsync({
-                    mediaTypes: ['images'] as any,
-                    quality: 1,
-                    base64: true,
-                  });
-                  if (!res.canceled && res.assets && res.assets[0]?.base64) {
-                    setLogoBase64(res.assets[0].base64);
-                  }
-                } catch (e) {
-                  Alert.alert('Error', 'Failed to open image picker. Please restart Metro.');
-                  console.error(e);
-                }
-              }}
-            >
-              <UploadIcon size={18} color={theme.colors.background} />
-              <Text style={styles.logoButtonText}>Add Logo</Text>
-            </TouchableOpacity>
-            {!!logoBase64 && (
-              <TouchableOpacity
-                style={[styles.logoButton, styles.logoRemoveButton]}
-                onPress={() => setLogoBase64(undefined)}
-              >
-                <Text style={styles.logoButtonText}>Remove</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
+                }}
+              />
+              {!!logoBase64 && (
+                <GradientButton
+                  title="Remove"
+                  variant="danger"
+                  size="md"
+                  style={styles.logoBtn}
+                  onPress={() => setLogoBase64(undefined)}
+                />
+              )}
+            </View>
+          </Animated.View>
 
-        <View style={styles.nameSection}>
-          <Text style={styles.label}>Name (optional)</Text>
-          <TextInput
-            style={styles.nameInput}
-            value={name}
-            onChangeText={setName}
-            placeholder={generateAutoName()}
-            placeholderTextColor="#999"
-          />
-        </View>
+          <Animated.View entering={FadeInRight.delay(200).duration(480).easing(Easing.out(Easing.cubic))} style={styles.panel}>
+            <Text style={styles.optionLabel}>Name (optional)</Text>
+            <TextInput
+              style={styles.nameInput}
+              value={name}
+              onChangeText={setName}
+              placeholder={generateAutoName()}
+              placeholderTextColor={theme.colors.textTertiary}
+            />
+          </Animated.View>
 
-        <TouchableOpacity style={[styles.button, styles.saveButton]} onPress={handleSave}>
-          <Text style={styles.buttonText}>Save QR Code</Text>
-        </TouchableOpacity>
-      </ScrollView>
+          <GradientButton title="Save QR Code" onPress={handleSave} style={styles.cta} />
+        </ScrollView>
 
-      <ColorPickerModal
-        key={`color-${colorPickerType}`}
-        visible={colorPickerVisible}
-        onClose={() => setColorPickerVisible(false)}
-        value={colorPickerType === 'foreground' ? style.foregroundColor : style.backgroundColor}
-        onChange={(color, target) => {
-          if (target === 'foreground') {
-            setStyle(prev => ({ ...prev, foregroundColor: color }));
-          } else {
-            setStyle(prev => ({ ...prev, backgroundColor: color }));
-          }
-        }}
-        label={colorPickerType === 'foreground' ? 'Foreground' : 'Background'}
-        isForeground={colorPickerType === 'foreground'}
-        currentStyle={style}
-        type={type}
-        data={generateQRData()}
-        logoBase64={logoBase64}
-      />
-    </SafeAreaView>
+        <ColorPickerModal
+          key={`color-${colorPickerType}`}
+          visible={colorPickerVisible}
+          onClose={() => setColorPickerVisible(false)}
+          value={colorPickerType === 'foreground' ? style.foregroundColor : style.backgroundColor}
+          onChange={(color, target) => {
+            if (target === 'foreground') {
+              setStyle((prev) => ({ ...prev, foregroundColor: color }));
+            } else {
+              setStyle((prev) => ({ ...prev, backgroundColor: color }));
+            }
+          }}
+          label={colorPickerType === 'foreground' ? 'Foreground' : 'Background'}
+          isForeground={colorPickerType === 'foreground'}
+          currentStyle={style}
+          type={type}
+          data={generateQRData()}
+          logoBase64={logoBase64}
+        />
+      </SafeAreaView>
+    </AmbientBackground>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingTop: 0,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: theme.spacing.md,
-    backgroundColor: theme.colors.background,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderLight,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.sm,
+  },
+  iconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+  },
+  headerCenter: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  headerEyebrow: {
+    fontSize: 10,
+    fontFamily: theme.fonts.family,
+    color: theme.colors.primaryLight,
+    letterSpacing: 2,
+    marginBottom: 1,
+  },
+  headerRight: {
+    minWidth: 42,
+    alignItems: 'flex-end',
   },
   title: {
     fontSize: theme.fonts.sizes.xl,
     fontFamily: theme.fonts.family,
     fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
+    letterSpacing: 0.3,
   },
   cancelText: {
     fontSize: theme.fonts.sizes.md,
     fontFamily: theme.fonts.family,
-    color: theme.colors.primary,
-  },
-  backText: {
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    color: theme.colors.primary,
-  },
-  backButton: {
-    padding: theme.spacing.xs,
+    color: theme.colors.primaryLight,
   },
   content: {
     flex: 1,
   },
+  scrollPad: {
+    paddingHorizontal: theme.spacing.md,
+    paddingTop: theme.spacing.sm,
+    paddingBottom: 130,
+  },
   typeSelector: {
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.md,
-    marginBottom: 0,
+    marginBottom: theme.spacing.md,
   },
   sectionTitle: {
     fontSize: theme.fonts.sizes.lg,
@@ -584,50 +625,69 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: theme.spacing.sm,
   },
+  typeButtonWrap: {
+    width: '22.7%',
+  },
   typeButton: {
-    width: '22%',
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.surface,
     borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    paddingVertical: theme.spacing.md,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: theme.colors.borderLight,
+    gap: theme.spacing.xs + 2,
   },
   typeButtonActive: {
     borderColor: theme.colors.primary,
-    backgroundColor: theme.colors.primary + '15',
-  },
-  typeIcon: {
-    fontSize: 32,
-    marginBottom: 8,
+    backgroundColor: theme.colors.primary + '22',
   },
   typeButtonText: {
     fontSize: theme.fonts.sizes.xs,
     fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.regular,
     color: theme.colors.textSecondary,
-    marginTop: theme.spacing.xs,
   },
   typeButtonTextActive: {
-    color: theme.colors.primary,
-    fontWeight: theme.fonts.weights.semibold,
+    color: theme.colors.primaryLight,
+  },
+  formCard: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    marginBottom: theme.spacing.lg,
+    overflow: 'hidden',
+  },
+  cta: {
+    marginTop: theme.spacing.sm,
   },
   previewSection: {
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.md,
-  },
-  previewContainer: {
     alignItems: 'center',
+    marginBottom: theme.spacing.lg,
+    marginTop: theme.spacing.xs,
   },
-  styleSection: {
-    backgroundColor: theme.colors.background,
+  previewGlow: {
+    borderRadius: theme.borderRadius.xl,
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.5,
+    shadowRadius: 28,
+    elevation: 12,
+  },
+  previewTile: {
     padding: theme.spacing.md,
-    marginBottom: 0,
-    marginTop: -theme.spacing.md,
+    borderRadius: theme.borderRadius.lg,
+  },
+  panel: {
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.lg,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    padding: theme.spacing.md,
+    marginBottom: theme.spacing.md,
   },
   twoColumnLayout: {
     flexDirection: 'row',
-    gap: 24,
+    gap: theme.spacing.lg,
   },
   shapesColumn: {
     flex: 2,
@@ -636,7 +696,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   optionButton: {
-    marginBottom: 16,
+    marginBottom: theme.spacing.md,
   },
   optionLabel: {
     fontSize: theme.fonts.sizes.sm,
@@ -651,118 +711,67 @@ const styles = StyleSheet.create({
     gap: theme.spacing.sm,
   },
   iconButton: {
-    width: 48,
-    height: 48,
+    width: 46,
+    height: 46,
     borderRadius: theme.borderRadius.sm,
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.surfaceElevated,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: theme.colors.borderLight,
   },
   iconButtonActive: {
-    backgroundColor: theme.colors.primary,
+    backgroundColor: theme.colors.primary + '22',
     borderColor: theme.colors.primary,
-  },
-  nameSection: {
-    backgroundColor: theme.colors.background,
-    padding: theme.spacing.md,
-    marginBottom: 0,
-  },
-  label: {
-    fontSize: theme.fonts.sizes.sm,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
-  },
-  nameInput: {
-    backgroundColor: theme.colors.backgroundSecondary,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    color: theme.colors.text,
-  },
-  button: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
-    alignItems: 'center',
-    margin: theme.spacing.md,
-    ...theme.shadows.medium,
-  },
-  nextButton: {},
-  saveButton: {},
-  buttonText: {
-    color: theme.colors.background,
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
-  },
-  colorPickerRow: {
-    alignItems: 'flex-start',
   },
   colorPickerContainer: {
     flexDirection: 'column',
-    gap: 12,
+    gap: theme.spacing.md,
   },
   colorItemContainer: {
     alignItems: 'center',
+    gap: 6,
   },
   colorItemLabel: {
     fontSize: theme.fonts.sizes.xs,
     fontFamily: theme.fonts.family,
     fontWeight: theme.fonts.weights.bold,
-    color: theme.colors.text,
-    marginBottom: 6,
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.5,
   },
   colorButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: theme.colors.backgroundSecondary,
+    backgroundColor: theme.colors.surfaceElevated,
     borderRadius: theme.borderRadius.md,
-    padding: theme.spacing.md,
+    padding: theme.spacing.sm,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: theme.colors.borderLight,
   },
   colorPreviewCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: theme.borderRadius.sm,
     borderWidth: 2,
-    borderColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 3,
+    borderColor: 'rgba(255,255,255,0.25)',
+  },
+  nameInput: {
+    backgroundColor: theme.colors.surfaceElevated,
+    borderRadius: theme.borderRadius.md,
+    padding: theme.spacing.md,
+    fontSize: theme.fonts.sizes.md,
+    fontFamily: theme.fonts.family,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    color: theme.colors.text,
   },
   logoRow: {
     flexDirection: 'row',
-    gap: 12,
+    gap: theme.spacing.sm,
     alignItems: 'center',
   },
-  logoButton: {
-    backgroundColor: theme.colors.primary,
-    borderRadius: theme.borderRadius.md,
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.xs,
-  },
-  logoRemoveButton: {
-    backgroundColor: theme.colors.error,
-  },
-  logoButtonText: {
-    color: theme.colors.background,
-    fontSize: theme.fonts.sizes.sm,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
+  logoBtn: {
+    flex: 1,
   },
 });
 

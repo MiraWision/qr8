@@ -11,9 +11,10 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import CustomQR from './CustomQR';
 import { buildQrPayload } from '../utils/qrPayload';
+import { theme } from '../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const PICKER_SIZE = SCREEN_WIDTH - 120;
+const PICKER_SIZE = SCREEN_WIDTH - 170;
 
 interface ColorPickerModalProps {
   visible: boolean;
@@ -258,18 +259,20 @@ const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
 
           <View style={styles.content}>
             <View style={styles.previewContainer}>
+              <View style={styles.previewTile}>
               <CustomQR
                 value={buildQrPayload(type as any, data)}
-                size={180}
+                size={130}
                 foregroundColor={isForeground ? currentColor : currentStyle.foregroundColor}
                 backgroundColor={!isForeground ? currentColor : currentStyle.backgroundColor}
                 cellShape={currentStyle.cellShape}
                 eyeShape={currentStyle.eyeShape}
                 errorCorrectionLevel={'H'}
-                quietZone={24}
+                quietZone={16}
                 gradient={null}
-                centerLogo={logoBase64 ? { width: 48, height: 48, borderRadius: 10, bgColor: '#fff', logoBase64 } : null}
+                centerLogo={logoBase64 ? { width: 40, height: 40, borderRadius: 10, bgColor: '#fff', logoBase64 } : null}
               />
+              </View>
             </View>
 
             <View style={styles.pickerSection}>
@@ -355,63 +358,89 @@ const ColorPickerModal: React.FC<ColorPickerModalProps> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(5, 3, 10, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   modal: {
-    backgroundColor: '#fff',
-    borderRadius: 20,
+    backgroundColor: theme.colors.surfaceSolid,
+    borderRadius: theme.borderRadius.xl,
     width: '90%',
-    maxHeight: '80%',
+    maxHeight: '92%',
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderLight,
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1a1a1a',
+    fontSize: theme.fonts.sizes.lg,
+    fontFamily: theme.fonts.family,
+    fontWeight: theme.fonts.weights.bold,
+    color: theme.colors.text,
+    letterSpacing: 0.3,
   },
   closeButton: {
-    padding: 4,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
   },
   closeIcon: {
-    fontSize: 24,
-    color: '#666',
+    fontSize: 16,
+    color: theme.colors.textSecondary,
   },
   content: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 12,
   },
   previewContainer: {
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 14,
+  },
+  previewTile: {
+    backgroundColor: theme.colors.tile,
+    padding: 12,
+    borderRadius: theme.borderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 5,
   },
   pickerSection: {
-    marginBottom: 10,
+    marginBottom: 4,
   },
   pickerLabel: {
-    fontSize: 14,
+    fontSize: 13,
+    fontFamily: theme.fonts.family,
     fontWeight: '600',
-    color: '#1a1a1a',
-    marginBottom: 12,
+    color: theme.colors.textSecondary,
+    letterSpacing: 0.5,
+    marginBottom: 10,
   },
   colorPickerRow: {
     flexDirection: 'row',
     gap: 16,
-    marginBottom: 16,
+    marginBottom: 14,
   },
   mainPickerContainer: {
     width: PICKER_SIZE,
     height: PICKER_SIZE,
     borderRadius: 12,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.surfaceElevated,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -454,7 +483,7 @@ const styles = StyleSheet.create({
     width: 30,
     height: PICKER_SIZE,
     borderRadius: 15,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: theme.colors.surfaceElevated,
     position: 'relative',
     overflow: 'hidden',
   },
@@ -490,48 +519,59 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   colorPreviewBox: {
-    width: 50,
-    height: 50,
+    width: 42,
+    height: 42,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: theme.colors.border,
   },
   colorText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.text,
     fontFamily: 'monospace',
+    letterSpacing: 1,
   },
   footer: {
     flexDirection: 'row',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.borderLight,
     gap: 12,
   },
   cancelButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: '#f0f0f0',
+    padding: 15,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
     alignItems: 'center',
   },
   cancelButtonText: {
     fontSize: 16,
+    fontFamily: theme.fonts.family,
     fontWeight: '600',
-    color: '#1a1a1a',
+    color: theme.colors.text,
   },
   saveButton: {
     flex: 1,
-    padding: 14,
-    borderRadius: 10,
-    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.primary,
     alignItems: 'center',
+    shadowColor: theme.colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    elevation: 8,
   },
   saveButtonText: {
     fontSize: 16,
+    fontFamily: theme.fonts.family,
     fontWeight: '600',
-    color: '#fff',
+    color: theme.colors.onPrimary,
   },
 });
 

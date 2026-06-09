@@ -1,17 +1,12 @@
 import React from 'react';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Alert,
-} from 'react-native';
+import { View, Text, Modal, ScrollView, StyleSheet, Alert, Pressable } from 'react-native';
+import Animated, { FadeIn, FadeInDown, Easing } from 'react-native-reanimated';
 import QRCodePreview from './QRCodePreview';
 import CustomQR, { CustomQRHandle } from './CustomQR';
+import GradientButton from './ui/GradientButton';
+import PressableScale from './ui/PressableScale';
 import { buildQrPayload } from '../utils/qrPayload';
 import { QRCodeItem } from '../types/qr';
 import { theme } from '../theme';
@@ -28,14 +23,7 @@ interface Props {
   onDelete: (id: string) => Promise<void>;
 }
 
-const QRCodeModal: React.FC<Props> = ({ 
-  visible, 
-  item, 
-  onClose, 
-  onPin, 
-  onUnpin, 
-  onDelete 
-}) => {
+const QRCodeModal: React.FC<Props> = ({ visible, item, onClose, onPin, onUnpin, onDelete }) => {
   const qrRef = React.useRef<View>(null);
   const exportQrRef = React.useRef<CustomQRHandle>(null);
 
@@ -50,21 +38,17 @@ const QRCodeModal: React.FC<Props> = ({
   };
 
   const handleDelete = () => {
-    Alert.alert(
-      'Delete QR Code',
-      `Are you sure you want to delete "${item.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Delete', 
-          style: 'destructive',
-          onPress: async () => {
-            await onDelete(item.id);
-            onClose();
-          }
+    Alert.alert('Delete QR Code', `Are you sure you want to delete "${item.name}"?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          await onDelete(item.id);
+          onClose();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleShare = async () => {
@@ -86,93 +70,75 @@ const QRCodeModal: React.FC<Props> = ({
   };
 
   const getDecodedData = () => {
+    const rows: { label: string; value: string }[] = [];
     switch (item.type) {
       case 'wifi':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>WiFi Details:</Text>
-            <Text style={styles.dataRow}>SSID: {item.data.ssid}</Text>
-            <Text style={styles.dataRow}>Encryption: {item.data.encryption}</Text>
-          </View>
-        );
+        rows.push({ label: 'Network', value: item.data.ssid });
+        rows.push({ label: 'Encryption', value: item.data.encryption });
+        break;
       case 'text':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>Text:</Text>
-            <Text style={styles.dataContent}>{item.data.text}</Text>
-          </View>
-        );
+        rows.push({ label: 'Text', value: item.data.text });
+        break;
       case 'link':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>URL:</Text>
-            <Text style={styles.dataContent}>{item.data.url}</Text>
-          </View>
-        );
+        rows.push({ label: 'URL', value: item.data.url });
+        break;
       case 'vcard':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>Contact:</Text>
-            <Text style={styles.dataRow}>Name: {item.data.name}</Text>
-            {item.data.phone && <Text style={styles.dataRow}>Phone: {item.data.phone}</Text>}
-            {item.data.email && <Text style={styles.dataRow}>Email: {item.data.email}</Text>}
-          </View>
-        );
+        rows.push({ label: 'Name', value: item.data.name });
+        if (item.data.phone) rows.push({ label: 'Phone', value: item.data.phone });
+        if (item.data.email) rows.push({ label: 'Email', value: item.data.email });
+        break;
       case 'email':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>Email:</Text>
-            <Text style={styles.dataRow}>To: {item.data.email}</Text>
-            {item.data.subject && <Text style={styles.dataRow}>Subject: {item.data.subject}</Text>}
-            {item.data.body && <Text style={styles.dataContent}>Body: {item.data.body}</Text>}
-          </View>
-        );
+        rows.push({ label: 'To', value: item.data.email });
+        if (item.data.subject) rows.push({ label: 'Subject', value: item.data.subject });
+        if (item.data.body) rows.push({ label: 'Body', value: item.data.body });
+        break;
       case 'phone':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>Phone:</Text>
-            <Text style={styles.dataRow}>{item.data.phone}</Text>
-          </View>
-        );
+        rows.push({ label: 'Phone', value: item.data.phone });
+        break;
       case 'sms':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>SMS:</Text>
-            <Text style={styles.dataRow}>To: {item.data.phone}</Text>
-            {item.data.message && <Text style={styles.dataContent}>Message: {item.data.message}</Text>}
-          </View>
-        );
+        rows.push({ label: 'To', value: item.data.phone });
+        if (item.data.message) rows.push({ label: 'Message', value: item.data.message });
+        break;
       case 'event':
-        return (
-          <View style={styles.dataSection}>
-            <Text style={styles.dataTitle}>Event:</Text>
-            <Text style={styles.dataRow}>Title: {item.data.title}</Text>
-            {item.data.location && <Text style={styles.dataRow}>Location: {item.data.location}</Text>}
-            {item.data.startDate && <Text style={styles.dataRow}>Start: {item.data.startDate}</Text>}
-            {item.data.endDate && <Text style={styles.dataRow}>End: {item.data.endDate}</Text>}
-            {item.data.description && <Text style={styles.dataContent}>Description: {item.data.description}</Text>}
-          </View>
-        );
-      default:
-        return null;
+        rows.push({ label: 'Title', value: item.data.title });
+        if (item.data.location) rows.push({ label: 'Location', value: item.data.location });
+        if (item.data.startDate) rows.push({ label: 'Start', value: item.data.startDate });
+        if (item.data.endDate) rows.push({ label: 'End', value: item.data.endDate });
+        if (item.data.description) rows.push({ label: 'Description', value: item.data.description });
+        break;
     }
+    return (
+      <View style={styles.dataSection}>
+        {rows.map((r, i) => (
+          <View key={i} style={styles.dataRow}>
+            <Text style={styles.dataLabel}>{r.label}</Text>
+            <Text style={styles.dataValue}>{r.value}</Text>
+          </View>
+        ))}
+      </View>
+    );
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <View style={styles.overlay}>
-        <View style={styles.modal}>
-          <ScrollView style={styles.scrollView}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
+      <Animated.View entering={FadeIn.duration(200)} style={styles.overlay}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Animated.View entering={FadeInDown.duration(420).easing(Easing.out(Easing.cubic))} style={styles.modal}>
+          <View style={styles.handle} />
+          <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
-              <Text style={styles.title}>{item.name}</Text>
-              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+              <Text style={styles.title} numberOfLines={1}>{item.name}</Text>
+              <PressableScale onPress={onClose} style={styles.closeButton} activeScale={0.85}>
                 <Text style={styles.closeIcon}>✕</Text>
-              </TouchableOpacity>
+              </PressableScale>
             </View>
 
-            <View style={styles.qrContainer} ref={qrRef}>
-              <QRCodePreview item={item} size={200} />
+            <View style={styles.qrContainer}>
+              <View style={[styles.qrTile, { backgroundColor: item.style?.backgroundColor || theme.colors.tile }]}>
+                <QRCodePreview item={item} size={210} />
+              </View>
             </View>
+
             <View style={{ position: 'absolute', left: 0, top: 0, width: 1, height: 1, opacity: 0 }}>
               <CustomQR
                 ref={exportQrRef}
@@ -192,35 +158,33 @@ const QRCodeModal: React.FC<Props> = ({
             {getDecodedData()}
 
             <View style={styles.actions}>
-              <TouchableOpacity 
-                style={[styles.button, styles.pinButton]} 
+              <GradientButton
+                title={item.isPinned ? 'Unpin' : 'Pin'}
                 onPress={handlePin}
-              >
-                <PinIcon size={20} color={theme.colors.background} />
-                <Text style={styles.buttonText}>
-                  {item.isPinned ? 'Unpin' : 'Pin'}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.button, styles.shareButton]} 
+                variant="glass"
+                size="md"
+                icon={<PinIcon size={18} color={theme.colors.text} />}
+                style={styles.actionBtn}
+              />
+              <GradientButton
+                title="Share"
                 onPress={handleShare}
-              >
-                <ShareIcon size={20} color={theme.colors.background} />
-                <Text style={styles.buttonText}>Share</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={[styles.button, styles.deleteButton]} 
+                size="md"
+                icon={<ShareIcon size={18} color={theme.colors.onPrimary} />}
+                style={styles.actionBtn}
+              />
+              <GradientButton
+                title="Delete"
                 onPress={handleDelete}
-              >
-                <DeleteIcon size={20} color={theme.colors.background} />
-                <Text style={styles.buttonText}>Delete</Text>
-              </TouchableOpacity>
+                variant="danger"
+                size="md"
+                icon={<DeleteIcon size={18} color={theme.colors.onPrimary} />}
+                style={styles.actionBtn}
+              />
             </View>
           </ScrollView>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </Modal>
   );
 };
@@ -228,28 +192,41 @@ const QRCodeModal: React.FC<Props> = ({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    backgroundColor: 'rgba(5, 3, 10, 0.7)',
     justifyContent: 'center',
     alignItems: 'center',
+    padding: theme.spacing.md,
   },
   modal: {
-    backgroundColor: theme.colors.background,
-    borderRadius: theme.borderRadius.lg,
-    width: '90%',
-    maxHeight: '85%',
+    backgroundColor: theme.colors.surfaceSolid,
+    borderRadius: theme.borderRadius.xl,
+    width: '100%',
+    maxHeight: '88%',
+    borderWidth: 1,
+    borderColor: theme.colors.glassBorder,
     ...theme.shadows.medium,
+    overflow: 'hidden',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: theme.colors.border,
+    alignSelf: 'center',
+    marginTop: 10,
   },
   scrollView: {
-    padding: theme.spacing.md,
+    paddingHorizontal: theme.spacing.lg,
+  },
+  scrollContent: {
+    paddingTop: theme.spacing.md,
+    paddingBottom: theme.spacing.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    paddingBottom: theme.spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderLight,
+    marginBottom: theme.spacing.lg,
   },
   title: {
     fontSize: theme.fonts.sizes.xl,
@@ -257,84 +234,72 @@ const styles = StyleSheet.create({
     fontWeight: theme.fonts.weights.bold,
     color: theme.colors.text,
     flex: 1,
+    letterSpacing: 0.3,
   },
   closeButton: {
-    padding: theme.spacing.xs,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
     marginLeft: theme.spacing.sm,
   },
   closeIcon: {
-    fontSize: 24,
+    fontSize: 16,
     fontFamily: theme.fonts.family,
     color: theme.colors.textSecondary,
-    lineHeight: 24,
+    lineHeight: 18,
   },
   qrContainer: {
     alignItems: 'center',
-    marginBottom: theme.spacing.md,
-    backgroundColor: theme.colors.backgroundSecondary,
+    marginBottom: theme.spacing.lg,
+  },
+  qrTile: {
     padding: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
+    borderRadius: theme.borderRadius.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 6,
   },
   dataSection: {
-    marginBottom: theme.spacing.md,
-    paddingBottom: theme.spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.borderLight,
-  },
-  dataTitle: {
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
-    color: theme.colors.text,
-    marginBottom: theme.spacing.sm,
+    marginBottom: theme.spacing.lg,
+    backgroundColor: theme.colors.surface,
+    borderRadius: theme.borderRadius.md,
+    borderWidth: 1,
+    borderColor: theme.colors.borderLight,
+    paddingHorizontal: theme.spacing.md,
+    paddingVertical: theme.spacing.xs,
   },
   dataRow: {
-    fontSize: theme.fonts.sizes.sm,
-    fontFamily: theme.fonts.family,
-    color: theme.colors.textSecondary,
-    marginBottom: theme.spacing.xs,
-    lineHeight: 20,
+    paddingVertical: theme.spacing.sm + 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: theme.colors.borderLight,
   },
-  dataContent: {
-    fontSize: theme.fonts.sizes.sm,
+  dataLabel: {
+    fontSize: theme.fonts.sizes.xs,
     fontFamily: theme.fonts.family,
-    color: theme.colors.textSecondary,
-    lineHeight: 20,
+    color: theme.colors.primaryLight,
+    letterSpacing: 0.5,
+    marginBottom: 3,
+    textTransform: 'uppercase',
+  },
+  dataValue: {
+    fontSize: theme.fonts.sizes.md,
+    fontFamily: theme.fonts.family,
+    color: theme.colors.text,
+    lineHeight: 21,
   },
   actions: {
     flexDirection: 'row',
     gap: theme.spacing.sm,
-    marginTop: theme.spacing.sm,
-    paddingTop: theme.spacing.md,
   },
-  button: {
+  actionBtn: {
     flex: 1,
-    flexDirection: 'row',
-    paddingVertical: theme.spacing.md,
-    paddingHorizontal: theme.spacing.md,
-    borderRadius: theme.borderRadius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: theme.spacing.xs,
-    minHeight: 44,
-  },
-  pinButton: {
-    backgroundColor: theme.colors.primary,
-    ...theme.shadows.small,
-  },
-  shareButton: {
-    backgroundColor: theme.colors.primary,
-    ...theme.shadows.small,
-  },
-  deleteButton: {
-    backgroundColor: theme.colors.error,
-    ...theme.shadows.small,
-  },
-  buttonText: {
-    color: theme.colors.background,
-    fontSize: theme.fonts.sizes.md,
-    fontFamily: theme.fonts.family,
-    fontWeight: theme.fonts.weights.semibold,
   },
 });
 
