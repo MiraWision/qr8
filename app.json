@@ -5,43 +5,54 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/logos/qr8-logo.png",
+    "userInterfaceStyle": "dark",
     "splash": {
       "image": "./assets/images/logos/qr8-logo.png",
       "resizeMode": "contain",
-      "backgroundColor": "#9058aa"
+      "backgroundColor": "#0A0712"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.qr8.app",
+      "buildNumber": "1",
       "infoPlist": {
-        "NSCameraUsageDescription": "We need access to your camera to scan QR codes"
-      },
-      "statusBar": {
-        "barStyle": "dark-content"
+        "NSCameraUsageDescription": "QR8 uses the camera to scan QR codes.",
+        "NSPhotoLibraryUsageDescription": "QR8 needs access to your photos to scan QR codes from images you choose.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#0A0712"
       },
       "package": "com.qr8.app",
+      "versionCode": 1,
+      "edgeToEdgeEnabled": true,
       "permissions": [
-        "CAMERA"
-      ],
-      "statusBar": {
-        "barStyle": "dark-content",
-        "backgroundColor": "#ffffff"
-      }
+        "android.permission.CAMERA",
+        "android.permission.READ_MEDIA_IMAGES"
+      ]
     },
     "plugins": [
       [
         "expo-camera",
         {
-          "cameraPermission": "Allow $(PRODUCT_NAME) to access your camera"
+          "cameraPermission": "QR8 uses the camera to scan QR codes."
         }
       ],
-      "expo-sqlite"
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "QR8 needs access to your photos to scan QR codes from images you choose."
+        }
+      ],
+      "expo-sqlite",
+      "expo-splash-screen",
+      "expo-font"
     ]
   }
 }

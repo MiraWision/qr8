@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createStackNavigator } from '@react-navigation/stack';
@@ -7,13 +7,18 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import { Abel_400Regular } from '@expo-google-fonts/abel';
+import * as SplashScreen from 'expo-splash-screen';
 
 import LibraryScreen from './screens/LibraryScreen';
 import CreateScreen from './screens/CreateScreen';
 import ScannerScreen from './screens/ScannerScreen';
 import FloatingTabBar from './components/ui/FloatingTabBar';
-import { createTestData } from './utils/testData';
+import ErrorBoundary from './components/ErrorBoundary';
+import { qrStorageService } from './services/QRStorageService';
 import { theme } from './theme';
+
+// Keep the native splash screen visible until fonts + database are ready.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -68,24 +73,43 @@ const App: React.FC = () => {
   const [fontsLoaded] = useFonts({
     Abel_400Regular,
   });
+  const [dbReady, setDbReady] = useState(false);
 
   useEffect(() => {
-    createTestData().catch(console.error);
+    qrStorageService
+      .init()
+      .catch((error) => {
+        if (__DEV__) console.error('Failed to initialize storage:', error);
+      })
+      .finally(() => setDbReady(true));
   }, []);
 
-  if (!fontsLoaded) {
+  const appIsReady = fontsLoaded && dbReady;
+
+  const onLayoutRootView = useCallback(async () => {
+    if (appIsReady) {
+      await SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [appIsReady]);
+
+  if (!appIsReady) {
     return null;
   }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1, backgroundColor: theme.colors.background }}>
-      <SafeAreaProvider>
-        <StatusBar style="light" />
-        <NavigationContainer theme={navTheme}>
-          <TabNavigatorContent />
-        </NavigationContainer>
-      </SafeAreaProvider>
-    </GestureHandlerRootView>
+    <ErrorBoundary>
+      <GestureHandlerRootView
+        style={{ flex: 1, backgroundColor: theme.colors.background }}
+        onLayout={onLayoutRootView}
+      >
+        <SafeAreaProvider>
+          <StatusBar style="light" />
+          <NavigationContainer theme={navTheme}>
+            <TabNavigatorContent />
+          </NavigationContainer>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
+    </ErrorBoundary>
   );
 };
 

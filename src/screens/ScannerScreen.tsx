@@ -8,13 +8,12 @@ import {
   Image,
   Animated,
 } from 'react-native';
-import { CameraView, Camera } from 'expo-camera';
+import { CameraView, Camera, scanFromURLAsync } from 'expo-camera';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
-import * as ImageManipulator from 'expo-image-manipulator';
 import QRCodeParser from '../utils/qrParser';
 import { QRCodeItem, CellShape, EyeShape } from '../types/qr';
 import ScanResultModal from '../components/ScanResultModal';
@@ -30,10 +29,8 @@ const ScannerScreen: React.FC = () => {
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const hiddenCameraRef = useRef<CameraView>(null);
   const scanLineAnim = useRef(new Animated.Value(0)).current;
   const [scanStatus, setScanStatus] = useState<'idle' | 'scanning' | 'success' | 'error'>('idle');
-  const scanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [scannedItem, setScannedItem] = useState<QRCodeItem | null>(null);
   const [resultModalVisible, setResultModalVisible] = useState(false);
 
@@ -51,46 +48,32 @@ const ScannerScreen: React.FC = () => {
   }, [selectedImage]);
 
   const decodeQRFromImage = async (imageUri: string) => {
+    setScanStatus('scanning');
     try {
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-        scanTimeoutRef.current = null;
+      const results = await scanFromURLAsync(imageUri, ['qr']);
+
+      if (results && results.length > 0 && results[0].data) {
+        setSelectedImage(null);
+        setScanned(true);
+        processQRCode(results[0].data);
+        return;
       }
 
-      setScanStatus('scanning');
-
-      await ImageManipulator.manipulateAsync(
-        imageUri,
-        [{ resize: { width: 1000 } }],
-        { compress: 1, format: ImageManipulator.SaveFormat.PNG }
-      );
-
-      scanTimeoutRef.current = setTimeout(() => {
-        setScanStatus((currentStatus) => {
-          if (currentStatus === 'scanning') {
-            return 'error';
-          }
-          return currentStatus;
-        });
-        setTimeout(() => {
-          setScanStatus('idle');
-          setSelectedImage(null);
-          Alert.alert('No QR Code Found', 'Please select an image with a QR code. CameraView cannot scan static images.');
-        }, 1500);
-        scanTimeoutRef.current = null;
-      }, 5000);
-    } catch (error) {
-      console.error('Error decoding QR from image:', error);
-      if (scanTimeoutRef.current) {
-        clearTimeout(scanTimeoutRef.current);
-        scanTimeoutRef.current = null;
-      }
+      // No QR code detected in the image.
       setScanStatus('error');
       setTimeout(() => {
         setScanStatus('idle');
         setSelectedImage(null);
-        Alert.alert('Error', 'Failed to process image.');
-      }, 1500);
+        Alert.alert('No QR Code Found', 'The selected image does not contain a readable QR code.');
+      }, 1200);
+    } catch (error) {
+      if (__DEV__) console.error('Error decoding QR from image:', error);
+      setScanStatus('error');
+      setTimeout(() => {
+        setScanStatus('idle');
+        setSelectedImage(null);
+        Alert.alert('Error', 'Failed to process the image. Please try another one.');
+      }, 1200);
     }
   };
 
@@ -145,7 +128,7 @@ const ScannerScreen: React.FC = () => {
         setScanned(false);
       }, 800);
     } catch (error) {
-      console.error('Parse error:', error);
+      if (__DEV__) console.error('Parse error:', error);
       setScanStatus('error');
       setTimeout(() => {
         setScanStatus('idle');
@@ -279,22 +262,6 @@ const ScannerScreen: React.FC = () => {
         ) : (
           <View style={styles.previewContainer}>
             <Image source={{ uri: selectedImage }} style={styles.previewImage} />
-            <CameraView
-              ref={hiddenCameraRef}
-              style={styles.hiddenCamera}
-              facing="back"
-              onBarcodeScanned={(event) => {
-                if (event && event.data && scanStatus === 'scanning') {
-                  if (scanTimeoutRef.current) {
-                    clearTimeout(scanTimeoutRef.current);
-                    scanTimeoutRef.current = null;
-                  }
-                  setSelectedImage(null);
-                  setScanned(true);
-                  processQRCode(event.data);
-                }
-              }}
-            />
             {scanStatus === 'scanning' && (
               <View style={styles.scanStatusContainer}>
                 <Text style={styles.scanStatusText}>Scanning…</Text>
@@ -331,7 +298,7 @@ const ScannerScreen: React.FC = () => {
                   setSelectedImage(res.assets[0].uri);
                 }
               } catch (error) {
-                console.error('Error loading image:', error);
+                if (__DEV__) console.error('Error loading image:', error);
                 Alert.alert('Error', 'Failed to load image');
               }
             }}

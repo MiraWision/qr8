@@ -19,17 +19,12 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@lib/*": [
-        "./lib/*"
       ]
     }
   },
   "include": [
-    "next-env.d.ts",
     "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts"
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules"
